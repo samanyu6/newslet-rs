@@ -1,5 +1,5 @@
 use std::net::TcpListener;
-use zero2prod::run;
+use zero2prod::startup::run;
 
 // tokio handles clean up of spawn under tokio::test and spins up new ones for each run
 // no mem leaks
