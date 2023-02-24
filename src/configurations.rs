@@ -1,6 +1,5 @@
 use std::convert::Infallible;
 
-use actix_web::cookie::time::format_description::well_known::iso8601::Config;
 use config::ConfigError;
 use serde::Deserialize;
 
@@ -26,7 +25,21 @@ pub fn get_configuration() -> Result<Settings, ConfigError> {
         .merge(config::File::with_name("configuration"))
         .expect("Error with config");
 
-    let op: Result<Settings, ConfigError> = settings.try_into();
+    settings.try_into()
+}
 
-    op
+impl DatabaseSettings {
+    pub fn connection_string(&self) -> String {
+        format!(
+            "postgres://{}:{}@{}:{}/{}",
+            self.username, self.password, self.host, self.port, self.database_name
+        )
+    }
+
+    pub fn connection_string_without_db(&self) -> String {
+        format!(
+            "postgres://{}:{}@{}:{}",
+            self.username, self.password, self.host, self.port
+        )
+    }
 }
