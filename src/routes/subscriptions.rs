@@ -2,7 +2,7 @@ use actix_web::{
     web::{self, Data},
     HttpResponse, Responder,
 };
-use chrono::Utc;
+use chrono;
 use serde;
 use sqlx::PgPool;
 use tracing;
@@ -41,7 +41,7 @@ pub async fn insert_subscriber(pool: &PgPool, form: &FormData) -> Result<(), sql
         Uuid::new_v4(),
         form.email,
         form.name,
-        Utc::now()
+        chrono::Utc::now()
     )
     .execute(pool)
     .await

@@ -1,5 +1,3 @@
-use std::io::Sink;
-
 use tracing::{subscriber::set_global_default, Subscriber};
 use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
 use tracing_log::LogTracer;
@@ -16,16 +14,19 @@ pub fn init_subscriber(subscriber: impl Subscriber + Send + Sync) {
 }
 
 // return impl so send and sync are abstracted from us and we're simply passing it into init
-pub fn get_subscriber(name: String, env_filter: String, sink: Sink) -> impl Subscriber + Send + Sync
+pub fn get_subscriber<Sink>(
+    name: String,
+    env_filter: String,
+    sink: Sink,
+) -> impl Subscriber + Send + Sync
 where
     // higher ranked trait bound: means that sink implements makewriter for all choices of lifetime ,<'a>
-    Sink: for<'a> MakeWriter<'a> + Send + Sync + 'static,
+    Sink: for<'a> MakeWriter<'a> + 'static + Send + Sync,
 {
     // enables logging level as an env var if env var isn't present
     let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
     let formatting_layer = BunyanFormattingLayer::new(
-        "zero2prod".into(),
-        // output into cli
+        name, // output into cli
         sink,
     );
 

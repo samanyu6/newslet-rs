@@ -1,4 +1,5 @@
 use once_cell::sync::Lazy;
+use secrecy::ExposeSecret;
 use sqlx::{postgres::PgRow, Connection, Executor, PgConnection, PgPool, Row};
 use std::net::TcpListener;
 use uuid::Uuid;
@@ -8,7 +9,6 @@ use zero2prod::{
     startup::run,
     telemetry::{get_subscriber, init_subscriber},
 };
-
 pub struct TestApp {
     pub address: String,
     pub db_pool: PgPool,
