@@ -6,7 +6,21 @@ use chrono;
 use serde;
 use sqlx::PgPool;
 use tracing;
+use unicode_segmentation::UnicodeSegmentation;
 use uuid::Uuid;
+
+use crate::domain::{subscriber_name::NewSubscriber, SubscriberEmail, SubscriberName};
+
+impl TryFrom<FormData> for NewSubscriber {
+    type Error = String;
+
+    fn try_from(value: FormData) -> Result<Self, Self::Error> {
+        let name = SubscriberName::parse(value.name)?;
+        let email = SubscriberEmail::parse(value.email)?;
+
+        Ok(Self { email, name })
+    }
+}
 
 #[derive(serde::Deserialize)]
 pub struct FormData {
@@ -23,7 +37,12 @@ pub struct FormData {
     )
 )]
 pub async fn subscribe(_form: web::Form<FormData>, _connection: Data<PgPool>) -> impl Responder {
-    match insert_subscriber(&_connection, &_form).await {
+    let new_subscriber = match _form.0.try_into() {
+        Ok(form) => form,
+        Err(_) => return HttpResponse::BadRequest().finish(),
+    };
+
+    match insert_subscriber(&_connection, &new_subscriber).await {
         Ok(_) => HttpResponse::Ok().finish(),
         Err(_) => HttpResponse::InternalServerError().finish(),
     }
@@ -31,16 +50,16 @@ pub async fn subscribe(_form: web::Form<FormData>, _connection: Data<PgPool>) ->
 
 #[tracing::instrument(
     name = "Saving new subscriber details in the database",
-    skip(form, pool)
+    skip(new_subs, pool)
 )]
-pub async fn insert_subscriber(pool: &PgPool, form: &FormData) -> Result<(), sqlx::Error> {
+pub async fn insert_subscriber(pool: &PgPool, new_subs: &NewSubscriber) -> Result<(), sqlx::Error> {
     sqlx::query!(
         r#"
         INSERT INTO subscriptions (id, email, name, subscribed_at) VALUES ($1, $2, $3, $4)
         "#,
         Uuid::new_v4(),
-        form.email,
-        form.name,
+        new_subs.email.as_ref(),
+        new_subs.name.as_ref(),
         chrono::Utc::now()
     )
     .execute(pool)
