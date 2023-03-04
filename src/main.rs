@@ -20,8 +20,7 @@ async fn main() -> Result<(), std::io::Error> {
 
     let connection = PgPoolOptions::new()
         .acquire_timeout(Duration::from_secs(2))
-        .connect_lazy(&conf.database.connection_string().expose_secret())
-        .expect("Failed to connect to the db");
+        .connect_lazy_with(conf.database.with_db());
 
     startup::run(listener, connection).await?.await;
     Ok(())

@@ -1,18 +1,15 @@
-FROM lukemathwalker/cargo-chef:latest-rust-1.59.0 as chef
+FROM lukemathwalker/cargo-chef:latest-rust-1 AS chef
 WORKDIR /app
 RUN apt update && apt install lld clang -y
 
-FROM chef as planner
+FROM chef AS planner
 COPY . .
-# compute lock file for proj (this enables caching, changes in the dep file only will re-compute changes, making compilation faster)
 RUN cargo chef prepare --recipe-path recipe.json
 
-FROM chef as builder
+FROM chef AS builder
 COPY --from=planner /app/recipe.json recipe.json
-# Build our project dependencies, not our application!
+# Build dependencies - this is the caching Docker layer!
 RUN cargo chef cook --release --recipe-path recipe.json
-# Up to this point, if our dependency tree stays the same,
-# all layers should be cached.
 
 COPY . .
 ENV SQLX_OFFLINE true
