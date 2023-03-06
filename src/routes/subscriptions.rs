@@ -6,7 +6,6 @@ use chrono;
 use serde;
 use sqlx::PgPool;
 use tracing;
-use unicode_segmentation::UnicodeSegmentation;
 use uuid::Uuid;
 
 use crate::domain::{subscriber_name::NewSubscriber, SubscriberEmail, SubscriberName};

@@ -5,8 +5,8 @@ use std::net::TcpListener;
 use uuid::Uuid;
 use zero2prod::{
     configurations::{get_configuration, DatabaseSettings},
-    routes::FormData,
-    startup::run,
+    routes::{email_client::EmailClient, FormData},
+    startup::{get_connection_pool, run, Application},
     telemetry::{get_subscriber, init_subscriber},
 };
 pub struct TestApp {
@@ -113,24 +113,28 @@ async fn spawn_app() -> TestApp {
     // first init makes it launch tracing, all other invocations skip exec
     Lazy::force(&TRACING);
 
-    // port 0 calls the OS and OS will allocate an unused port for us
-    let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port");
-    let port = listener.local_addr().unwrap().port();
+    let configuration = {
+        let mut c = get_configuration().expect("Failed to read configuration.");
 
-    let mut conf = get_configuration().expect("Failed to read configuration");
-    conf.database.database_name = Uuid::new_v4().to_string();
+        c.database.database_name = Uuid::new_v4().to_string();
 
-    let db_pool = configure_database(&conf.database).await;
+        c.application.port = 0;
 
-    let sv = run(listener, db_pool.clone())
+        c
+    };
+
+    configure_database(&configuration.database).await;
+    let app = Application::build(configuration.clone())
         .await
-        .expect("Failed to bind address");
+        .expect("Failed to build application");
 
-    let _ = tokio::spawn(sv);
+    let address = format!("http://127.0.0.1:{}", app.port());
+
+    let _ = tokio::spawn(app.run_until_stopped());
 
     TestApp {
-        address: format!("http://127.0.0.1:{}", port),
-        db_pool: db_pool,
+        address: address,
+        db_pool: get_connection_pool(&configuration.database),
     }
 }
 
