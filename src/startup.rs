@@ -10,7 +10,7 @@ use tracing_actix_web::TracingLogger;
 
 use crate::{
     configurations::{DatabaseSettings, Settings},
-    routes::{self, email_client::EmailClient},
+    routes::{self, email_client::EmailClient, subscriptions_confirm::confirm},
 };
 
 pub fn get_connection_pool(configuration: &DatabaseSettings) -> PgPool {
@@ -49,7 +49,13 @@ impl Application {
 
         let listener = TcpListener::bind(&address)?;
         let port = listener.local_addr().unwrap().port();
-        let server = run(listener, connection_pool, email_client).await?;
+        let server = run(
+            listener,
+            connection_pool,
+            email_client,
+            configuration.application.base_url,
+        )
+        .await?;
 
         Ok(Self { port, server })
     }
@@ -63,13 +69,17 @@ impl Application {
     }
 }
 
+pub struct ApplicationBaseUrl(pub String);
+
 pub async fn run(
     listener: TcpListener,
     connection: PgPool,
     email_client: EmailClient,
+    base_url: String,
 ) -> Result<Server, std::io::Error> {
     // creates a cloneable reference to be cloned accross all cores
     let connection = Data::new(connection);
+    let base_url = Data::new(ApplicationBaseUrl(base_url));
 
     // move transfers ownership to closure
     let server = HttpServer::new(move || {
@@ -77,8 +87,10 @@ pub async fn run(
             .wrap(TracingLogger::default())
             .route("/health_check", web::get().to(health))
             .route("/subscriptions", web::post().to(subscribe))
+            .route("/subscriptions/confirm", web::get().to(confirm))
             .app_data(email_client.clone())
             .app_data(connection.clone())
+            .app_data(base_url.clone())
     })
     .listen(listener)?
     .run();

@@ -2530,6 +2530,7 @@ dependencies = [
  "config",
  "env_logger",
  "once_cell",
+ "rand",
  "reqwest",
  "secrecy",
  "serde 1.0.152",
